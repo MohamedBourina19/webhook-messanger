@@ -43,7 +43,7 @@ def webhook():
         return 'OK', 200
 
 def send_message(sender_id, message):
-    url = 'https://graph.facebook.com/v13.0/me/messages'
+    url = 'https://graph.facebook.com/v16.0/me/messages'
     token = 'EAAO52Vx4rI0BOzZBgcdG9hqUkYCdIOU2y2OJlg5ab7lv9z4e38iZCB41r4ZB5zZCFwrj8hkfJ7ZCrEsuOu1i2yXQQ13h6uXncU6E4VhI7n1noVAwF1qcoOmcAkDcyN2FcgZAE3ZAMOu4f9ZCOs7rxzQkd3uZC0srFJBY6amZB3IgQsgKNWmx1CbASdZB1vZAk8sNNsopggZDZD'
     headers = {
         'Content-Type': 'application/json'
@@ -64,7 +64,7 @@ def send_message(sender_id, message):
 def get_messages():
     cursor.execute('SELECT * FROM messages')
     messages = cursor.fetchall()
-    return jsonify({'messages': messages})
+    return f"test : {messages}"
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0",port=5000, debug=True)
