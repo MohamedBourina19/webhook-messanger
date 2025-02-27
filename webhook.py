@@ -1,41 +1,31 @@
 from flask import Flask
 from flask import request
+from flask import jsonify
+import requests 
 import json
+VERIFY_TOKEN = "mohamedbougrina19"
 
-def json_save(debug, key):
-  index = {}
-  try:
-      try:
-        with open("debug.json", "r") as debugs:
-           index = json.load(debugs)
-      except(FileNotFoundError, json.JSONDecodeError) as error :
-           return str(error)
-      if "debug" not in index:
-         index["debug"]={key:[]}
-      index["debug"][key].append(debug)
-      with open("debug.json", "w") as file_debugs:
-         json.dump(index, file_debugs, indent=2)
-  except Exception as error :
-       return str(error) 
 app = Flask(__name__)
 @app.route("/", methods=["GET","POST"])
-def dashboard():return "error api :-)"
+def message():return jsonify({"message":"error api"})
 @app.route("/webhook", methods=["GET","POST"])
-def requesting():
+def webhook():
    if request.method == "GET":
-      mode = request.args.get("hub.mode")
-      json_save(mode, "hub")
+      model = request.args.get("hub.model")
       token = request.args.get("hub.verify_token")
-      json_save(token, "hub")
       challenge = request.args.get("hub.challenge")
-      json_save(challenge, "hub")
-      return challenge
+      if model == "subscribe" and token == VERIFY_TOKEN:
+         return jsonify({"message": challenge})
+      else:return jsonify({"message":"error data request"})
    if request.method == "POST":
-      data = request.get_json()
-      json_save(data, "data_json")
-@app.route("/your/data/", methods=["GET","POST"])
-def show():
-   with open("debug.json", "r") as debugs:
-      return json.load(debugs)
+      data =  request.get_json()
+      if data["object"] == "page":
+         id = data["entry"][0]["messaging"][0]["sender"]["id"]
+         msg = data["entry"][0]["messaging"][0]["message"]["text"]
+         url = "https://graph.facebook.com/v21.0/me/messages"
+         header = {"Authorization": "Bearer EAAQQA1jZB5X4BO9gulIGruLuSNQZBK4nLBecjEmZBprer0huHjHEb9RHg6GJh686AwcSZAe4LwlT34Qxbpyj6XZBpWSRN3ZB1jcqJ12ZCGZBHdnvifiZBSyCEjbaqRjZBFtjts9iAFIjdHPMQ0ZBhZA62IdYnaXHyCwy1iTsY8yUiAesRwJiRZAV7GVixPvdPCgNb2J5x4gZDZD"}
+         payload = {"message": {"text": msg},"recipient": {"id": id}}
+         requests.post(url, json=payload,headers=header)
+       
 if __name__ == "__main__":
-   app.run(host="0.0.0.0", port=5000, debug=True)      
+   app.run(host="0.0.0.0", port=5000, debug=True) 
