@@ -6,7 +6,7 @@ import time
 app = Flask(__name__)
 
 ACCESS_TOKEN = "EAAQQA1jZB5X4BO2xMCZCOEMpjj8sZANib8YPx1hGBp8EVRAATtLCbV041Wke1Y3K0fEF6n0h3ZBEkGm7wwoENo51XZB1UipOVcn2mWDNjSfbsj2q7f7gKTZA27RyWpz6yLjnRWM6PxwiDrD8qDXbQu72UZCDoMJS9ZCSGEyZBIZASxP2ZBweZCKNxxPAdqqCiwLrsKIpRAZDZD"
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = "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"
 
 def send_message(sender_id, text):
     url = f"https://graph.facebook.com/v12.0/me/messages?access_token={ACCESS_TOKEN}"
