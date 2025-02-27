@@ -51,21 +51,30 @@ def verify_webhook():
 @app.route("/webhook", methods=["POST"])
 def handle_messages():
     data = request.get_json()
-    if data["object"] == "page":
-        for entry in data["entry"]:
-            for messaging_event in entry["messaging"]:
-                sender_id = messaging_event["sender"]["id"]
-                if "message" in messaging_event:
-                    message_id = messaging_event["message"]["mid"]
-                    mark_message_as_seen(sender_id)
-                    send_like_reaction(sender_id, message_id)
-                    if "text" in messaging_event["message"]:
-                        message_text = messaging_event["message"]["text"]
-                        send_typing_indicator(sender_id)
-                        time.sleep(2)
-                        ai_response = get_ai_response(message_text)
-                        if ai_response:
-                            send_message(sender_id, ai_response)
+    if data["object"] != "page":
+        return "ok", 200
+
+    entry = data["entry"][0] if data["entry"] else None
+    if not entry:
+        return "ok", 200
+
+    messaging_event = entry["messaging"][0] if entry["messaging"] else None
+    if not messaging_event or "message" not in messaging_event:
+        return "ok", 200
+
+    sender_id = messaging_event["sender"]["id"]
+    message_id = messaging_event["message"]["mid"]
+    mark_message_as_seen(sender_id)
+    send_like_reaction(sender_id, message_id)
+
+    if "text" in messaging_event["message"]:
+        message_text = messaging_event["message"]["text"]
+        send_typing_indicator(sender_id)
+        time.sleep(2)
+        ai_response = get_ai_response(message_text)
+        if ai_response:
+            send_message(sender_id, ai_response)
+
     return "ok", 200
 
 if __name__ == "__main__":
