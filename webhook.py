@@ -51,31 +51,22 @@ def verify_webhook():
 @app.route("/webhook", methods=["POST"])
 def handle_messages():
     data = request.get_json()
-    if data["object"] != "page":
-        return "ok", 200
-
-    entry = data["entry"][0] if data["entry"] else None
-    if not entry:
-        return "ok", 200
-
-    messaging_event = entry["messaging"][0] if entry["messaging"] else None
-    if not messaging_event or "message" not in messaging_event:
-        return "ok", 200
-
-    sender_id = messaging_event["sender"]["id"]
-    message_id = messaging_event["message"]["mid"]
-    mark_message_as_seen(sender_id)
-    send_like_reaction(sender_id, message_id)
-
-    if "text" in messaging_event["message"]:
-        message_text = messaging_event["message"]["text"]
-        send_typing_indicator(sender_id)
-        time.sleep(2)
-        ai_response = get_ai_response(message_text)
-        if ai_response:
-            send_message(sender_id, ai_response)
-
-    return "ok", 200
+    if data["object"] == "page":
+        id = data["entry"][0]["messaging"][0]["sender"]["id"]
+        send_like_reaction(id)
+        send_typing_indicator(id)
+        mark_message_as_seen(id)
+        msg = data["entry"][0]["messaging"][0]["message"]["text"]
+        response = requests.post(url="https://openrouter.ai/api/v1/chat/completions",
+        headers={
+           "Authorization": "Bearer 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",
+           "Content-Type": "application/json",  },
+        data=json.dumps({"model": "deepseek/deepseek-r1-distill-llama-8b","messages": [{"role": "user","content": msg}],}))
+        res = response.json()["choices"][0]["message"]["content"]
+        url = "https://graph.facebook.com/v21.0/me/messages"
+        header = {"Authorization": "Bearer EAAQQA1jZB5X4BO9gulIGruLuSNQZBK4nLBecjEmZBprer0huHjHEb9RHg6GJh686AwcSZAe4LwlT34Qxbpyj6XZBpWSRN3ZB1jcqJ12ZCGZBHdnvifiZBSyCEjbaqRjZBFtjts9iAFIjdHPMQ0ZBhZA62IdYnaXHyCwy1iTsY8yUiAesRwJiRZAV7GVixPvdPCgNb2J5x4gZDZD"}
+        payload = {"message": {"text": res},"recipient": {"id": "9089172697785732"}}
+        requests.post(url, json=payload,headers=header)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
