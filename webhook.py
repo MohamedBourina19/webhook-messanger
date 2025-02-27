@@ -6,49 +6,41 @@ import time
 app = Flask(__name__)
 
 ACCESS_TOKEN = "EAAQQA1jZB5X4BO2xMCZCOEMpjj8sZANib8YPx1hGBp8EVRAATtLCbV041Wke1Y3K0fEF6n0h3ZBEkGm7wwoENo51XZB1UipOVcn2mWDNjSfbsj2q7f7gKTZA27RyWpz6yLjnRWM6PxwiDrD8qDXbQu72UZCDoMJS9ZCSGEyZBIZASxP2ZBweZCKNxxPAdqqCiwLrsKIpRAZDZD"
-DEEPSEEK_KEY = "sk-fcb45cbd6f5f4f67b9bfb954c19b36ee"
+OPENROUTER_API_KEY = "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"
 
 def mark_message_as_seen(sender_id):
     url = f"https://graph.facebook.com/v12.0/me/messages?access_token={ACCESS_TOKEN}"
     headers = {"Content-Type": "application/json"}
-    data = {
-        "recipient": {"id": sender_id},
-        "sender_action": "mark_seen"
-    }
+    data = {"recipient": {"id": sender_id}, "sender_action": "mark_seen"}
     requests.post(url, headers=headers, data=json.dumps(data))
 
 def send_typing_indicator(sender_id):
     url = f"https://graph.facebook.com/v12.0/me/messages?access_token={ACCESS_TOKEN}"
     headers = {"Content-Type": "application/json"}
-    data = {
-        "recipient": {"id": sender_id},
-        "sender_action": "typing_on"
-    }
+    data = {"recipient": {"id": sender_id}, "sender_action": "typing_on"}
     requests.post(url, headers=headers, data=json.dumps(data))
 
 def send_message(sender_id, message):
     url = f"https://graph.facebook.com/v12.0/me/messages?access_token={ACCESS_TOKEN}"
     headers = {"Content-Type": "application/json"}
-    data = {
-        "recipient": {"id": sender_id},
-        "message": {"text": message}
-    }
+    data = {"recipient": {"id": sender_id}, "message": {"text": message}}
     requests.post(url, headers=headers, data=json.dumps(data))
 
 def send_like_reaction(sender_id, message_id):
     url = f"https://graph.facebook.com/v12.0/me/messages?access_token={ACCESS_TOKEN}"
     headers = {"Content-Type": "application/json"}
-    data = {
-        "recipient": {"id": sender_id},
-        "sender_action": "react",
-        "reaction": {"reaction": "♥", "mid": message_id}
-    }
+    data = {"recipient": {"id": sender_id}, "sender_action": "react", "reaction": {"reaction": "♥", "mid": message_id}}
     requests.post(url, headers=headers, data=json.dumps(data))
 
-def deepseek_image_recognition(image_url):
-    headers = {"Authorization": f"Bearer {DEEPSEEK_KEY}"}
-    response = requests.post("https://api.deepseek.com/v1/vision", headers=headers, json={"url": image_url})
-    return response.json()
+def get_ai_response(user_message):
+    response = requests.post(
+        url="https://openrouter.ai/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+        data=json.dumps({"model": "deepseek/deepseek-r1-distill-llama-8b", "messages": [{"role": "user", "content": user_message}]})
+    )
+    if response.status_code == 200:
+        return response.json()["choices"][0]["message"]["content"]
+    return None
 
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
@@ -63,23 +55,17 @@ def handle_messages():
         for entry in data["entry"]:
             for messaging_event in entry["messaging"]:
                 sender_id = messaging_event["sender"]["id"]
-                mark_message_as_seen(sender_id)  # Mark the message as seen
                 if "message" in messaging_event:
-                    message_id = messaging_event["message"]["mid"]  # Get the message ID
-                    send_like_reaction(sender_id, message_id)  # Send a like reaction (♥)
+                    message_id = messaging_event["message"]["mid"]
+                    mark_message_as_seen(sender_id)
+                    send_like_reaction(sender_id, message_id)
                     if "text" in messaging_event["message"]:
                         message_text = messaging_event["message"]["text"]
-                        send_typing_indicator(sender_id)  # Show typing indicator
-                        time.sleep(2)  # Simulate typing delay
-                        send_message(sender_id, f"لقد قلت: {message_text}")
-                    elif "attachments" in messaging_event["message"]:
-                        for attachment in messaging_event["message"]["attachments"]:
-                            if attachment["type"] == "image":
-                                image_url = attachment["payload"]["url"]
-                                send_typing_indicator(sender_id)  # Show typing indicator
-                                time.sleep(2)  # Simulate typing delay
-                                recognition_result = deepseek_image_recognition(image_url)
-                                send_message(sender_id, f"نتيجة التعرف على الصورة: {recognition_result}")
+                        send_typing_indicator(sender_id)
+                        time.sleep(2)
+                        ai_response = get_ai_response(message_text)
+                        if ai_response:
+                            send_message(sender_id, ai_response)
     return "ok", 200
 
 if __name__ == "__main__":
