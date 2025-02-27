@@ -62,7 +62,7 @@ def handle_messages():
            "Authorization": "Bearer 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",
            "Content-Type": "application/json",  },
         data=json.dumps({"model": "deepseek/deepseek-r1-distill-llama-8b","messages": [{"role": "user","content": msg}],}))
-        res = response.json()["choices"][0]["message"]["content"]
+        res = response.text
         url = "https://graph.facebook.com/v21.0/me/messages"
         header = {"Authorization": "Bearer EAAQQA1jZB5X4BO9gulIGruLuSNQZBK4nLBecjEmZBprer0huHjHEb9RHg6GJh686AwcSZAe4LwlT34Qxbpyj6XZBpWSRN3ZB1jcqJ12ZCGZBHdnvifiZBSyCEjbaqRjZBFtjts9iAFIjdHPMQ0ZBhZA62IdYnaXHyCwy1iTsY8yUiAesRwJiRZAV7GVixPvdPCgNb2J5x4gZDZD"}
         payload = {"message": {"text": res},"recipient": {"id": "9089172697785732"}}
