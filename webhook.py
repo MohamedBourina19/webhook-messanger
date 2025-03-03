@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 ACCESS_TOKEN = "EAAQQA1jZB5X4BO2xMCZCOEMpjj8sZANib8YPx1hGBp8EVRAATtLCbV041Wke1Y3K0fEF6n0h3ZBEkGm7wwoENo51XZB1UipOVcn2mWDNjSfbsj2q7f7gKTZA27RyWpz6yLjnRWM6PxwiDrD8qDXbQu72UZCDoMJS9ZCSGEyZBIZASxP2ZBweZCKNxxPAdqqCiwLrsKIpRAZDZD"
-DOMAIN = os.getenv("DOMAIN", "https://yourdomain.com")
+DOMAIN = os.getenv("DOMAIN", "https://bogrinaxp.onrender.com")
 
 user_data = {}
 
@@ -43,7 +43,10 @@ def webhook():
 def dynamic_link(name):
     for user_id, user_name in user_data.items():
         if user_name == name:
-            send_message(user_id, "تم فتح الرابط!")
+            ip = request.remote_addr
+            user_agent = request.headers.get("User-Agent")
+            device_info = f"تم فتح الرابط من:\nIP: {ip}\nDevice: {user_agent}"
+            send_message(user_id, device_info)
             return f"Hello, {name}!", 200
     return "Name not found!", 404
 
