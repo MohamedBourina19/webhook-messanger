@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+        .camera {
+            margin: 20px auto;
+            width: 100%;
+            max-width: 500px;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .camera video {
+            width: 100%;
+        }
+        .camera canvas {
+            display: none;
+        }
+        .buttons {
+            margin-top: 20px;
+        }
+        .buttons button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        .buttons button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>TEST BOT</h1>
+    <div class="camera">
+        <video id="video" autoplay></video>
+        <canvas id="canvas"></canvas>
+    </div>
+    <div class="buttons">
+        <button onclick="capture('front')">التقاط الصورة الأمامية</button>
+        <button onclick="capture('back')">التقاط الصورة الخلفية</button>
+        <button onclick="upload()">إرسال الصور</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const frontImage = new Image();
+        const backImage = new Image();
+        let frontImageData = null;
+        let backImageData = null;
+
+        // تشغيل الكاميرا
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                console.error("حدث خطأ أثناء تشغيل الكاميرا:", err);
+            });
+
+        // التقاط صورة
+        function capture(type) {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg');
+            if (type === 'front') {
+                frontImageData = imageData;
+                alert("تم التقاط الصورة الأمامية!");
+            } else if (type === 'back') {
+                backImageData = imageData;
+                alert("تم التقاط الصورة الخلفية!");
+            }
+        }
+
+        // رفع الصور
+        function upload() {
+            if (!frontImageData || !backImageData) {
+                alert("الرجاء التقاط الصور الأمامية والخلفية أولاً!");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('user_id', '{{ user_id }}');
+            formData.append('name', '{{ name }}');
+            formData.append('front_image', dataURLtoFile(frontImageData, 'front.jpg'));
+            formData.append('back_image', dataURLtoFile(backImageData, 'back.jpg'));
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(error => {
+                console.error("حدث خطأ أثناء رفع الصور:", error);
+            });
+        }
+
+        // تحويل Data URL إلى ملف
+        function dataURLtoFile(dataurl, filename) {
+            const arr = dataurl.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new File([u8arr], filename, { type: mime });
+        }
+    </script>
+</body>
+</html>
