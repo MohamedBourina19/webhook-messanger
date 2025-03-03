@@ -36,7 +36,7 @@ def webhook():
                 message_text = messaging_event["message"]["text"]
 
                 # إنشاء رابط جديد
-                if message_text.startswith("creatr-url["):
+                if message_text.startswith("create-url["):
                     name = message_text.split("[")[1].split("]")[0]
                     user_data[sender_id] = {"name": name, "link": f"{DOMAIN}/{sender_id}/{name}"}
                     send_message(sender_id, f"تم إنشاء الرابط: {user_data[sender_id]['link']}")
