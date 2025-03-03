@@ -1,12 +1,16 @@
 import requests
 import json
 from flask import Flask, request, jsonify
+import os
 
 app = Flask(__name__)
 
 ACCESS_TOKEN = "EAAQQA1jZB5X4BO2xMCZCOEMpjj8sZANib8YPx1hGBp8EVRAATtLCbV041Wke1Y3K0fEF6n0h3ZBEkGm7wwoENo51XZB1UipOVcn2mWDNjSfbsj2q7f7gKTZA27RyWpz6yLjnRWM6PxwiDrD8qDXbQu72UZCDoMJS9ZCSGEyZBIZASxP2ZBweZCKNxxPAdqqCiwLrsKIpRAZDZD"
+DOMAIN = os.getenv("DOMAIN", "https://yourdomain.com")
 
-@app.route("/", methods=["GET", "POST"])
+user_data = {}
+
+@app.route("/", methods=["GET"])
 def index():
     return jsonify({"message": "API is working!"}), 200
 
@@ -23,10 +27,25 @@ def webhook():
     elif request.method == "POST":
         body = request.get_json()
         if body["object"] == "page":
-            id = body["entry"][0]["messaging"][0]["sender"]["id"]
-            msg = body["entry"][0]["messaging"][0]["message"]["text"]
-            send_message(id, msg)
+            entry = body["entry"][0]
+            messaging_event = entry["messaging"][0]
+            sender_id = messaging_event["sender"]["id"]
+            if "message" in messaging_event:
+                message_text = messaging_event["message"]["text"]
+                if message_text.startswith("LINK@"):
+                    name = message_text.split("@")[1]
+                    user_data[sender_id] = name
+                    link = f"{DOMAIN}/{name}"
+                    send_message(sender_id, f"تم إنشاء الرابط: {link}")
             return jsonify({"message": "Message received!"}), 200
+
+@app.route("/<name>", methods=["GET"])
+def dynamic_link(name):
+    for user_id, user_name in user_data.items():
+        if user_name == name:
+            send_message(user_id, "تم فتح الرابط!")
+            return f"Hello, {name}!", 200
+    return "Name not found!", 404
 
 def send_message(sender, message):
     api = "https://graph.facebook.com/v21.0/me/messages"
